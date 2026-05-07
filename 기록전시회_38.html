@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 봄 기록전시회 — 인디스쿨</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✍️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, orderBy, query, onSnapshot, serverTimestamp, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyApM2b3L0aj99HzRoR_3fpVc8ukfHkzTf0",
+  authDomain: "writing-class-2026.firebaseapp.com",
+  projectId: "writing-class-2026",
+  storageBucket: "writing-class-2026.firebasestorage.app",
+  messagingSenderId: "14829305418",
+  appId: "1:14829305418:web:420b2d3c98085d3a8b30b3"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const likedSet = new Set();
+
+function formatDate(ts) {
+  if (!ts) return '';
+  return new Date(ts.seconds * 1000).toLocaleDateString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).replace(/\. /g, '.').slice(0, -1);
+}
+
+function entryHTML(docSnap) {
+  const e = docSnap.data();
+  const id = docSnap.id;
+  const liked = likedSet.has(id);
+  const date = formatDate(e.createdAt);
+  return `
+    <div class="gb-entry" id="entry-${id}">
+      <div class="gb-entry-top">
+        <span class="gb-entry-name">${e.name}</span>
+        <span class="gb-entry-date">${date}</span>
+      </div>
+      <div class="gb-entry-msg" id="msg-${id}">${e.message.replace(/\n/g, '<br>')}</div>
+      <div class="gb-edit-form" id="edit-${id}">
+        <textarea id="edit-ta-${id}">${e.message}</textarea>
+        <div class="gb-edit-actions">
+          <button class="gb-cancel-btn" onclick="window.cancelEdit('${id}')">취소</button>
+          <button class="gb-save-btn" onclick="window.saveEdit('${id}', '${e.password}')">저장</button>
+        </div>
+      </div>
+      <div class="gb-entry-bottom">
+        <div class="gb-actions">
+          <button class="gb-edit-btn" onclick="window.openEdit('${id}')">수정</button>
+          <button class="gb-del-btn" onclick="window.deleteEntry('${id}', '${e.password}')">삭제</button>
+        </div>
+        <button class="gb-heart ${liked ? 'on' : ''}" onclick="window.toggleGbHeart('${id}', ${e.hearts || 0}, ${liked})">♥ ${e.hearts || 0}</button>
+      </div>
+    </div>
+  `;
+}
+
+function loadGuestbook() {
+  const list = document.getElementById('guestbook-list');
+  list.innerHTML = '<div class="gb-empty">불러오는 중...</div>';
+  const q = query(collection(db, 'guestbook'), orderBy('createdAt', 'desc'));
+  onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      list.innerHTML = '<div class="gb-empty">아직 방명록이 없어요. 첫 번째로 남겨보세요!</div>';
+      return;
+    }
+    list.innerHTML = snapshot.docs.map(entryHTML).join('');
+  });
+}
+
+window.submitGuestbook = async function() {
+  const name = document.getElementById('gb-name').value.trim();
+  const msg  = document.getElementById('gb-msg').value.trim();
+  const pw   = document.getElementById('gb-pw').value.trim();
+  if (!name || !msg || !pw) { alert('닉네임, 내용, 비밀번호를 모두 입력해주세요.'); return; }
+  const btn = document.querySelector('.gb-submit');
+  btn.textContent = '저장 중...'; btn.disabled = true;
+  await addDoc(collection(db, 'guestbook'), {
+    name, message: msg, password: pw, hearts: 0, createdAt: serverTimestamp()
+  });
+  document.getElementById('gb-name').value = '';
+  document.getElementById('gb-msg').value = '';
+  document.getElementById('gb-pw').value = '';
+  document.getElementById('gb-count').textContent = '0 / 200';
+  btn.textContent = '남기기'; btn.disabled = false;
+};
+
+window.toggleGbHeart = async function(id, currentHearts, liked) {
+  const ref = doc(db, 'guestbook', id);
+  if (liked) { likedSet.delete(id); await updateDoc(ref, { hearts: Math.max(0, currentHearts - 1) }); }
+  else        { likedSet.add(id);    await updateDoc(ref, { hearts: currentHearts + 1 }); }
+};
+
+// ── 작품 하트 (Firestore 공유) ──
+const likedWorks = new Set(JSON.parse(localStorage.getItem('liked-works') || '[]'));
+window.likedWorks = likedWorks;
+
+onSnapshot(collection(db, 'reactions'), snap => {
+  snap.docs.forEach(d => {
+    const id = parseInt(d.id);
+    const count = d.data().count || 0;
+    if (window.counts) window.counts[id] = count;
+    document.querySelectorAll('.react-btn-' + id).forEach(btn => {
+      btn.textContent = '♥ ' + count;
+    });
+  });
+  // 초기 liked 상태 반영
+  likedWorks.forEach(id => {
+    document.querySelectorAll('.react-btn-' + id).forEach(btn => btn.classList.add('on'));
+  });
+});
+
+window.toggleReaction = async function(id) {
+  const liked = likedWorks.has(id);
+  if (liked) likedWorks.delete(id); else likedWorks.add(id);
+  localStorage.setItem('liked-works', JSON.stringify([...likedWorks]));
+  const ref = doc(db, 'reactions', String(id));
+  await setDoc(ref, { count: increment(liked ? -1 : 1) }, { merge: true });
+};
+
+window.openEdit = function(id) {
+  document.getElementById('edit-' + id).classList.add('open');
+};
+
+window.cancelEdit = function(id) {
+  document.getElementById('edit-' + id).classList.remove('open');
+  document.getElementById('edit-pw-' + id).value = '';
+};
+
+function showModal({ icon, title, desc, confirmText, confirmClass, onConfirm }) {
+  document.getElementById('modal-icon').textContent = icon || '';
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').textContent = desc;
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-input').style.display = 'block';
+  const confirmBtn = document.getElementById('modal-confirm');
+  confirmBtn.textContent = confirmText;
+  confirmBtn.className = 'modal-confirm ' + (confirmClass || 'green');
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-cancel').onclick = () => {
+    document.getElementById('modal-overlay').classList.remove('open');
+  };
+  confirmBtn.onclick = () => {
+    const pw = document.getElementById('modal-input').value.trim();
+    document.getElementById('modal-overlay').classList.remove('open');
+    onConfirm(pw);
+  };
+}
+
+window.saveEdit = async function(id, savedPw) {
+  const msg = document.getElementById('edit-ta-' + id).value.trim();
+  if (!msg) { alert('내용을 입력해주세요.'); return; }
+  showModal({
+    icon: '✏️',
+    title: '수정하기',
+    desc: '비밀번호를 입력하면 수정이 완료돼요.',
+    confirmText: '수정 완료',
+    confirmClass: 'green',
+    onConfirm: async (pw) => {
+      if (!pw) { alert('비밀번호를 입력해주세요.'); return; }
+      if (pw !== savedPw) { alert('비밀번호가 맞지 않아요.'); return; }
+      await updateDoc(doc(db, 'guestbook', id), { message: msg });
+      window.cancelEdit(id);
+    }
+  });
+};
+
+window.deleteEntry = async function(id, savedPw) {
+  showModal({
+    icon: '🗑️',
+    title: '삭제하기',
+    desc: '비밀번호가 확인되면 이 글이 삭제돼요.\n삭제 후에는 복구할 수 없어요.',
+    confirmText: '삭제',
+    confirmClass: 'red',
+    onConfirm: async (pw) => {
+      if (!pw) { alert('비밀번호를 입력해주세요.'); return; }
+      if (pw !== savedPw) { alert('비밀번호가 맞지 않아요.'); return; }
+      await deleteDoc(doc(db, 'guestbook', id));
+    }
+  });
+};
+
+window.showBook = function(btn) {
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (typeof closeDetail === 'function') closeDetail();
+  document.getElementById('card-grid').style.display = 'none';
+  document.getElementById('guestbook-wrap').classList.remove('open');
+  const fg = document.getElementById('float-guide');
+  if (fg) { fg.style.opacity = '0'; fg.style.transform = 'translateY(8px)'; fg.dataset.hidden = '1'; }
+  document.getElementById('book-wrap').classList.add('open');
+};
+
+window.showGuestbook = function(btn) {
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (typeof closeDetail === 'function') closeDetail();
+  document.getElementById('card-grid').style.display = 'none';
+  document.getElementById('book-wrap').classList.remove('open');
+  const fg = document.getElementById('float-guide');
+  if (fg) { fg.style.opacity = '0'; fg.style.transform = 'translateY(8px)'; fg.dataset.hidden = '1'; }
+  document.getElementById('guestbook-wrap').classList.add('open');
+  loadGuestbook();
+  const ta = document.getElementById('gb-msg');
+  ta.oninput = () => {
+    document.getElementById('gb-count').textContent = ta.value.length + ' / 200';
+  };
+};
+
+window.hideGuestbook = function() {
+  document.getElementById('card-grid').style.display = '';
+  document.getElementById('guestbook-wrap').classList.remove('open');
+  document.getElementById('book-wrap').classList.remove('open');
+  const fg = document.getElementById('float-guide');
+  if (fg) { delete fg.dataset.hidden; }
+};
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #faf8f3;
+    --surface: #ffffff;
+    --border: #e8e0d4;
+    --text-main: #2a2218;
+    --text-sub: #7a6e5e;
+    --text-hint: #b0a494;
+    --green: #4a7c5a;
+    --green-light: #e6f2ea;
+    --green-text: #2d6a42;
+    --blue-light: #e6eef8;
+    --blue-text: #2a4e7a;
+    --amber-light: #faeeda;
+    --amber-text: #7a4e10;
+    --accent: #c8a878;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-main);
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 18px;
+    color: var(--text-main);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .logo span {
+    color: var(--green);
+  }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--text-hint);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: #f0ece3;
+    padding: 56px 32px 48px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+
+
+  .hero-tag {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 18px;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+
+  .hero h1 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 10px;
+    line-height: 1.25;
+  }
+
+  .hero .desc {
+    font-size: 15px;
+    color: var(--text-sub);
+    margin-bottom: 32px;
+    line-height: 1.7;
+  }
+
+  .hero-stats-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .hero-guide {
+    position: fixed;
+    bottom: 88px;
+    right: 32px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 10px 18px;
+    font-size: 13px;
+    color: var(--text-sub);
+    box-shadow: 0 4px 16px rgba(90,70,40,0.12);
+    z-index: 90;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+  }
+
+  .hero-stats {
+    display: inline-flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+  }
+
+  .stat-item {
+    padding: 14px 0;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    width: 120px;
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-val {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-main);
+    font-family: 'Nanum Myeongjo', serif;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-hint);
+    margin-top: 2px;
+  }
+
+  /* ── FILTER ── */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 18px 32px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-sub);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Pretendard', sans-serif;
+    font-weight: 400;
+    transition: all 0.15s;
+  }
+
+  .filter-tab:hover { background: #eee8de; border-color: #d0c8bc; }
+
+  .filter-tab.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .filter-tab .cnt {
+    font-size: 10px;
+    opacity: 0.65;
+  }
+
+  /* ── GRID ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 28px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  /* ── CARD ── */
+  .work-card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .work-card.active-card {
+    border-color: #a8c4a8;
+    box-shadow: 0 0 0 2px #c8dcc8;
+  }
+
+  .work-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(90,70,40,0.1);
+  }
+
+  .card-top {
+    padding: 24px 22px 18px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .qmark {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 56px;
+    line-height: 0.8;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .card-excerpt {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 14px;
+    line-height: 1.85;
+    color: #3a3028;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .card-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    margin-top: 16px;
+    align-self: flex-start;
+    font-weight: 500;
+  }
+
+  .badge-green { background: var(--green-light); color: var(--green-text); }
+  .badge-blue  { background: var(--blue-light);  color: var(--blue-text);  }
+  .badge-amber { background: var(--amber-light); color: var(--amber-text); }
+
+  .card-divider { height: 1px; background: var(--border); }
+
+  .card-bottom {
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .av-green  { background: #d4ebda; color: var(--green-text); }
+  .av-blue   { background: #d4e4f4; color: var(--blue-text); }
+  .av-amber  { background: #f4dfc0; color: var(--amber-text); }
+  .av-pink   { background: #f4d4e0; color: #7a2a4a; }
+  .av-purple { background: #e4d4f4; color: #4a2a7a; }
+
+  .author-info { margin-left: 10px; }
+  .author-name { font-size: 13px; font-weight: 500; color: var(--text-main); }
+  .author-sub  { font-size: 11px; color: var(--text-hint); }
+
+  .react-pill {
+    font-size: 11px;
+    color: var(--text-hint);
+    background: #f4efe6;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Pretendard', sans-serif;
+  }
+
+  .react-pill:hover, .react-pill.on {
+    background: #fce8e8;
+    color: #c0504a;
+  }
+
+  /* ── DETAIL (행 내 삽입) ── */
+  .detail-wrap {
+    display: none;
+    grid-column: 1 / -1;
+    padding: 0 0 8px;
+  }
+
+  .detail-wrap.open { display: block; }
+
+  .detail-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  .detail-card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 필사 패널 ── */
+  .pil-panel {
+    background: #eef3f8;
+    border-radius: 16px;
+    border: 1px solid #d8e4ee;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pil-header {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #d8e4ee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pil-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #4a6a8a;
+    letter-spacing: 0.03em;
+  }
+
+  .pil-hint {
+    font-size: 11px;
+    color: #8aA4ba;
+  }
+
+  .pil-body {
+    padding: 24px;
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pil-ghost {
+    position: absolute;
+    inset: 24px;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    line-height: 2.2;
+    color: rgba(74, 106, 138, 0.2);
+    white-space: pre-wrap;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .pil-textarea {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    line-height: 2.2;
+    color: #2a3a4a;
+    caret-color: #4a7c5a;
+    z-index: 1;
+  }
+
+  .pil-textarea::placeholder {
+    color: #b8cad8;
+  }
+
+  .pil-lines {
+    position: absolute;
+    inset: 24px;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .pil-line {
+    border-bottom: 1px solid rgba(100,140,180,0.15);
+    height: 33px;
+  }
+
+  .pil-footer {
+    padding: 14px 24px;
+    border-top: 1px solid #d8e4ee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pil-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .pil-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #d8e4ee;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .pil-progress-fill {
+    height: 100%;
+    background: #4a7c5a;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .pil-count {
+    font-size: 11px;
+    color: #8aA4ba;
+    white-space: nowrap;
+  }
+
+  .pil-clear {
+    background: transparent;
+    border: 1px solid #c8d8e4;
+    color: #7a9ab0;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: all 0.15s;
+    margin-left: 12px;
+  }
+
+  .pil-clear:hover { background: #dce8f0; color: #4a6a8a; }
+
+  .pil-done-msg {
+    display: none;
+    padding: 12px 24px;
+    background: #e6f2ea;
+    border-top: 1px solid #c4ddc8;
+    font-size: 13px;
+    color: var(--green-text);
+    text-align: center;
+    font-family: 'Nanum Myeongjo', serif;
+  }
+
+  .pil-save-btn {
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+  .pil-save-btn:hover { opacity: 0.85; }
+
+  /* ── 저장용 카드 (화면 밖에 렌더링) ── */
+  #pil-snapshot {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: 640px;
+    background: #faf8f3;
+    overflow: hidden;
+    font-family: 'Nanum Myeongjo', serif;
+  }
+
+  .snap-header {
+    background: #f0ece3;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #e8e0d4;
+  }
+
+  .snap-tag {
+    font-size: 11px;
+    color: var(--green);
+    font-family: 'Pretendard', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .snap-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2a2218;
+    margin-bottom: 4px;
+  }
+
+  .snap-author {
+    font-size: 12px;
+    color: #9a8e7e;
+    font-family: 'Pretendard', sans-serif;
+  }
+
+  .snap-body {
+    padding: 28px 32px;
+    background: #eef3f8;
+  }
+
+  .snap-label {
+    font-size: 11px;
+    color: #4a6a8a;
+    font-family: 'Pretendard', sans-serif;
+    font-weight: 500;
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+
+  .snap-text {
+    font-size: 15px;
+    line-height: 2;
+    color: #2a3a4a;
+    white-space: pre-wrap;
+    word-break: keep-all;
+  }
+
+  .snap-footer {
+    background: #f0ece3;
+    padding: 14px 32px;
+    border-top: 1px solid #e8e0d4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .snap-footer-logo {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4a7c5a;
+  }
+
+  .snap-footer-date {
+    font-size: 11px;
+    color: #b0a494;
+    font-family: 'Pretendard', sans-serif;
+  }
+
+  @media (max-width: 900px) {
+    .detail-columns { grid-template-columns: 1fr; }
+  }
+
+  .detail-head {
+    padding: 22px 28px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f4efe6;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #6a5e4e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    font-family: sans-serif;
+  }
+
+  .close-btn:hover { background: #e8dece; }
+
+  .detail-body {
+    padding: 8px 28px 24px;
+    flex: 1;
+  }
+
+  .detail-qmark {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 52px;
+    line-height: 0.85;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .detail-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text-main);
+  }
+
+  .detail-text {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    line-height: 2;
+    color: var(--text-main);
+    white-space: pre-line;
+  }
+
+  .detail-author-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .detail-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .detail-reactions {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .full-react {
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-hint);
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: all 0.15s;
+  }
+
+  .full-react:hover, .full-react.on {
+    background: #fce8e8;
+    border-color: #f0b8b8;
+    color: #c0504a;
+  }
+
+  .filter-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  .book-tab { border-color: #c4dac8; color: var(--green-text); }
+  .book-tab:hover { background: var(--green-light); border-color: #a8c8ac; }
+  .book-tab.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+  /* ── 필사집 소개 ── */
+  .book-wrap {
+    display: none;
+    padding: 28px 32px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .book-wrap.open { display: block; }
+
+  .book-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .book-hero {
+    background: linear-gradient(135deg, #2d6a42 0%, #4a7c5a 60%, #6a9c72 100%);
+    padding: 48px 40px 40px;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .book-cover {
+    flex-shrink: 0;
+    width: 114px;
+    height: 162px;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 5px 5px 20px rgba(0,0,0,0.3);
+  }
+
+  .book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .book-hero-text { flex: 1; }
+
+  .book-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.9);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    letter-spacing: 0.05em;
+  }
+
+  .book-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    word-break: keep-all;
+  }
+
+  .book-subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.6;
+  }
+
+  .book-body {
+    padding: 36px 40px;
+  }
+
+  .book-question-block {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+
+  .book-question-block p {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    color: var(--text-sub);
+    line-height: 1.9;
+    margin-bottom: 16px;
+    word-break: keep-all;
+  }
+
+  .book-question-block p:last-child { margin-bottom: 0; }
+
+  .book-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+  }
+
+  .book-q {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    color: var(--green-text);
+    padding: 12px 18px;
+    background: var(--green-light);
+    border-radius: 10px;
+    line-height: 1.6;
+  }
+
+  .book-desc {
+    font-size: 14px;
+    color: var(--text-sub);
+    line-height: 1.9;
+    word-break: keep-all;
+    margin-bottom: 28px;
+  }
+
+  .book-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .book-meta {
+    font-size: 12px;
+    color: var(--text-hint);
+    line-height: 1.8;
+  }
+
+  .book-btn {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 11px 28px;
+    border-radius: 24px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    letter-spacing: 0.02em;
+    transition: background 0.15s;
+    text-decoration: none;
+  }
+
+  .book-btn:hover { background: var(--green-text); }
+
+  @media (max-width: 640px) {
+    .book-hero { flex-direction: column; gap: 24px; padding: 32px 24px 28px; }
+    .book-cover { width: 90px; height: 126px; }
+    .book-title { font-size: 18px; }
+    .book-body { padding: 24px 20px; }
+    .book-wrap { padding: 20px 16px; }
+  }
+
+  /* ── 방명록 ── */
+  .guestbook-wrap {
+    display: none;
+    padding: 28px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .guestbook-wrap.open { display: block; }
+
+  .guestbook-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  .guestbook-form input {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+    font-size: 14px;
+    font-family: 'Pretendard', sans-serif;
+    color: var(--text-main);
+    background: transparent;
+    margin-bottom: 12px;
+    outline: none;
+  }
+
+  .guestbook-form input::placeholder { color: var(--text-hint); }
+
+  .guestbook-form textarea {
+    width: 100%;
+    border: none;
+    font-size: 14px;
+    font-family: 'Nanum Myeongjo', serif;
+    color: var(--text-main);
+    background: transparent;
+    resize: none;
+    height: 80px;
+    outline: none;
+    line-height: 1.8;
+  }
+
+  .guestbook-form textarea::placeholder { color: var(--text-hint); }
+
+  .gb-form-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .gb-count { font-size: 11px; color: var(--text-hint); }
+
+  .gb-submit {
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 7px 20px;
+    font-size: 13px;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .gb-submit:hover { opacity: 0.85; }
+
+  .guestbook-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .gb-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+
+  .gb-entry-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .gb-entry-name { font-size: 13px; font-weight: 500; color: var(--text-main); }
+  .gb-entry-date { font-size: 11px; color: var(--text-hint); }
+  .gb-entry-msg {
+    font-size: 14px;
+    font-family: 'Nanum Myeongjo', serif;
+    color: var(--text-main);
+    line-height: 1.8;
+    word-break: keep-all;
+  }
+
+  .gb-entry-bottom {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .gb-actions { display: flex; gap: 6px; }
+
+  .gb-edit-btn, .gb-del-btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    color: var(--text-hint);
+    transition: all 0.15s;
+  }
+  .gb-edit-btn:hover { background: #e8f0e8; color: var(--green-text); border-color: #a8c4a8; }
+  .gb-del-btn:hover  { background: #fce8e8; color: #c0504a; border-color: #f0b8b8; }
+
+  /* 수정 폼 */
+  .gb-edit-form { margin-top: 10px; display: none; }
+  .gb-edit-form.open { display: block; }
+  .gb-edit-form textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: 'Nanum Myeongjo', serif;
+    resize: none;
+    height: 80px;
+    outline: none;
+    color: var(--text-main);
+    background: var(--bg);
+  }
+  .gb-edit-form input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: 'Pretendard', sans-serif;
+    margin-top: 6px;
+    outline: none;
+    color: var(--text-main);
+    background: var(--bg);
+  }
+  .gb-edit-actions { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
+  .gb-save-btn {
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+  }
+  .gb-cancel-btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+    color: var(--text-hint);
+  }
+
+  .gb-heart {
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    color: var(--text-hint);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 10px;
+    transition: all 0.15s;
+    font-family: 'Pretendard', sans-serif;
+  }
+
+  .gb-heart:hover, .gb-heart.on {
+    background: #fce8e8;
+    color: #c0504a;
+  }
+
+  .gb-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 0;
+    font-size: 14px;
+    color: var(--text-hint);
+  }
+  /* ── 커스텀 모달 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(42, 34, 24, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 28px 28px 20px;
+    width: 340px;
+    border: 1px solid var(--border);
+  }
+  .modal-icon { font-size: 28px; margin-bottom: 10px; }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 6px;
+    font-family: 'Nanum Myeongjo', serif;
+  }
+  .modal-desc {
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  .modal-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: 'Pretendard', sans-serif;
+    outline: none;
+    color: var(--text-main);
+    background: var(--bg);
+    margin-bottom: 16px;
+  }
+  .modal-input:focus { border-color: #a8c4a8; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-cancel {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 13px;
+    color: var(--text-sub);
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: all 0.15s;
+  }
+  .modal-cancel:hover { background: var(--bg); }
+  .modal-confirm {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 13px;
+    color: white;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: opacity 0.15s;
+  }
+  .modal-confirm:hover { opacity: 0.85; }
+  .modal-confirm.green { background: var(--green); }
+  .modal-confirm.red   { background: #c0504a; }
+
+  .scroll-top {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--green);
+    color: white;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 500;
+  }
+  .scroll-top.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .scroll-top:hover { transform: translateY(-3px); }
+
+  /* ── 저작권 동의 모달 ── */
+  .copyright-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(42, 34, 24, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .copyright-overlay.open { display: flex; }
+
+  .copyright-box {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 28px;
+    width: 400px;
+    max-width: calc(100vw - 40px);
+    border: 1px solid var(--border);
+  }
+
+  .copyright-icon { font-size: 28px; margin-bottom: 10px; }
+
+  .copyright-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 6px;
+    font-family: 'Nanum Myeongjo', serif;
+  }
+
+  .copyright-desc {
+    font-size: 13px;
+    color: var(--text-sub);
+    line-height: 1.7;
+    margin-bottom: 18px;
+  }
+
+  .copyright-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .copyright-check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .copyright-check-item input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--green);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .copyright-check-item span {
+    font-size: 13px;
+    color: var(--text-main);
+    line-height: 1.6;
+  }
+
+  .copyright-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .copyright-cancel {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 13px;
+    color: var(--text-sub);
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: all 0.15s;
+  }
+  .copyright-cancel:hover { background: var(--bg); }
+
+  .copyright-confirm {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 13px;
+    color: white;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    background: var(--green);
+    transition: opacity 0.15s;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .copyright-confirm.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .copyright-confirm.active:hover { opacity: 0.85; }
+
+  footer {
+    text-align: center;
+    padding: 40px 32px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-hint);
+    margin-top: 20px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .card-grid { padding: 20px 16px; gap: 14px; }
+    .filter-bar { padding: 14px 16px; }
+    .hero { padding: 40px 20px 36px; }
+    .hero h1 { font-size: 26px; }
+    .detail-wrap { padding: 0 16px 24px; }
+    header { padding: 0 20px; }
+    .hero-stats { flex-direction: column; border-radius: 12px; }
+    .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+    .stat-item:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">쓰는<span>교사</span></div>
+  <div class="header-meta">2026년 봄 기록전시회 · 인디스쿨</div>
+</header>
+
+<section class="hero">
+  <div class="hero-tag">2026년 봄 기록전시회</div>
+  <h1>선생님들의 이야기</h1>
+  <p class="desc">한 달동안 써 내려간 30편의 기록.<br>필사하고, 읽고, 돌아본 시간들.</p>
+  <div class="hero-stats-wrap">
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-val">30</div>
+        <div class="stat-label">참여 선생님</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val">2</div>
+        <div class="stat-label">전시관</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val">30</div>
+        <div class="stat-label">작품</div>
+      </div>
+    </div>
+    <div style="display:inline-block;background:white;border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:13px;color:var(--text-sub);">✍️ 마음에 드는 글을 클릭하면 직접 필사할 수 있어요.</div>
+  </div>
+</section>
+
+<div class="filter-bar">
+  <button class="filter-tab active" onclick="filterCards('all', this)">전체 <span class="cnt" id="cnt-all"></span></button>
+  <button class="filter-tab" onclick="filterCards('탐구클럽', this)">탐구클럽 전시관 <span class="cnt" id="cnt-탐구클럽"></span></button>
+  <button class="filter-tab" onclick="filterCards('교단일기클럽', this)">교단일기클럽 전시관 <span class="cnt" id="cnt-교단일기클럽"></span></button>
+  <div class="filter-divider"></div>
+  <button class="filter-tab" onclick="showGuestbook(this)">방명록</button>
+  <button class="filter-tab book-tab" onclick="showBook(this)">📖 쓰는교사 필사집 소개</button>
+</div>
+
+<div class="card-grid" id="card-grid"></div>
+
+<div class="guestbook-wrap" id="guestbook-wrap">
+  <div class="guestbook-inner">
+    <div class="guestbook-form">
+      <div style="display:flex;gap:12px;">
+        <input type="text" id="gb-name" placeholder="닉네임" maxlength="20" style="flex:1;">
+        <input type="password" id="gb-pw" placeholder="비밀번호 (수정·삭제 시 필요)" maxlength="20" style="flex:1;">
+      </div>
+      <textarea id="gb-msg" placeholder="방명록을 남겨주세요..." maxlength="200"></textarea>
+      <div class="gb-form-bottom">
+        <span class="gb-count" id="gb-count">0 / 200</span>
+        <button class="gb-submit" onclick="submitGuestbook()">남기기</button>
+      </div>
+    </div>
+    <div class="guestbook-list" id="guestbook-list"></div>
+  </div>
+</div>
+
+<div class="book-wrap" id="book-wrap">
+  <div class="book-inner">
+    <div class="book-hero">
+      <div class="book-cover">
+        <img src="쓰는교사 필사집-표지1.jpg" alt="쓰는 교사 선생님을 위한 하루 한 장 필사집 표지">
+      </div>
+      <div class="book-hero-text">
+        <span class="book-tag">인디스쿨 · 쓰는교사 프로젝트</span>
+        <div class="book-title">쓰는 교사<br>선생님을 위한<br>하루 한 장 필사집</div>
+        <div class="book-subtitle">초등교사 54인의 문장으로 채운 단 한 권의 필사집</div>
+      </div>
+    </div>
+    <div class="book-body">
+      <div class="book-question-block">
+        <p style="font-family:'Pretendard',sans-serif; font-size:14px; color:var(--text-sub); line-height:1.9; word-break:keep-all; margin:0;">
+          기록전시회에서 동료 선생님의 글을 필사하면서 선생님은 어떤 감정이 드셨나요?<br> 
+          필사로 매일을 돌아보고 싶어졌다면, 선생님께 <strong>〈쓰는 교사 선생님을 위한 하루 한 장 필사집〉</strong>을 추천합니다.<br>
+        </p>
+      </div>
+      <p class="book-desc" style="margin-top:-12px;">
+        아이들의 웃음소리와 예기치 못한 갈등, 쏟아지는 공문과 벅찬 상담,<br>
+        선생님의 하루는 언제나 타인의 마음으로 가득 차 있습니다.
+      </p>
+      <p class="book-desc" style="margin-top:-12px;">
+        아이들이 떠난 오후, 소란함이 잦아들고 일순간 고요해진 교실을 보며 이런 질문을 하지 않으셨나요?
+      </p>
+      <div class="book-questions">
+        <div class="book-q" style="font-size:13px;">"나는 어떤 교사일까?"<br>
+        "오늘 내가 건넨 말이 아이들에게 잘 닿았을까?"</div>
+      </div>
+      <p class="book-desc">
+        그래서 준비했습니다.<br>
+        수많은 선생님이 교실에서 길어올린 진솔한 에피소드와 단단한 통찰을 담은 단 한 권의 필사집,<br>
+        <strong>〈쓰는 교사 선생님을 위한 하루 한 장 필사집〉</strong>
+      </p>
+      <p class="book-desc" style="margin-top:-12px;">
+        25년 인디스쿨 '쓰는교사' 프로젝트에 참여한 초등교사 54인의 글 중 일부 문장을 발췌해 만들었습니다.<br>
+        이 책은 오롯이 '선생님의', '선생님을 위한', '선생님에 의한' 문장들로 구성되어 있어요.<br>
+        수많은 선생님이 교실에서 길어올린 진솔한 에피소드와 단단한 통찰이 담겨 있습니다.<br>
+        하루 한 장, 선생님의 문장을 손으로 옮겨 적는 시간. 이 시간만큼은 선생님께서 온전히 '나 자신'을 마주하며 회복하는 시간이길 바랍니다.
+      </p>
+      <div class="book-footer" style="justify-content:center;">
+        <a class="book-btn" href="https://search.shopping.naver.com/book/catalog/59604402576?cat_id=50005544&frm=PBOKPRO&query=%EC%93%B0%EB%8A%94+%EA%B5%90%EC%82%AC+%EC%84%A0%EC%83%9D%EB%8B%98%EC%9D%84+%EC%9C%84%ED%95%9C+%ED%95%98%EB%A3%A8+%ED%95%9C+%EC%9E%A5+%ED%95%84%EC%82%AC%EC%A7%91&NaPm=ct%3Dmov2oe6w%7Cci%3Df41fb08f22a047c3e6ab181831bf3b0302974878%7Ctr%3Dboknx%7Csn%3D95694%7Chk%3Dc51ba851fd919511b4cf59f58332602ca3d577df" target="_blank">필사집 구매하기 →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pil-snapshot"></div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-icon" id="modal-icon"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-desc" id="modal-desc"></div>
+    <input class="modal-input" type="password" id="modal-input" placeholder="비밀번호 입력">
+    <div class="modal-btns">
+      <button class="modal-cancel" id="modal-cancel">취소</button>
+      <button class="modal-confirm" id="modal-confirm"></button>
+    </div>
+  </div>
+</div>
+
+<div class="copyright-overlay" id="copyright-overlay">
+  <div class="copyright-box">
+    <div class="copyright-icon">📋</div>
+    <div class="copyright-title">저장 전 확인해주세요</div>
+    <div class="copyright-desc">필사 이미지를 저장하기 전에 아래 내용을 읽고 동의해주세요.</div>
+    <div class="copyright-checks">
+      <label class="copyright-check-item">
+        <input type="checkbox" id="copy-check-1" onchange="updateCopyrightBtn()">
+        <span>이 글의 저작권은 원저자(선생님)에게 있으며, 개인 소장 목적으로만 사용합니다.</span>
+      </label>
+      <label class="copyright-check-item">
+        <input type="checkbox" id="copy-check-2" onchange="updateCopyrightBtn()">
+        <span>SNS 등 외부에 공유할 경우 반드시 출처(쓰는교사 · 인디스쿨)를 밝힙니다.</span>
+      </label>
+      <label class="copyright-check-item">
+        <input type="checkbox" id="copy-check-3" onchange="updateCopyrightBtn()">
+        <span>상업적 목적으로 사용하지 않습니다.</span>
+      </label>
+    </div>
+    <div class="copyright-btns">
+      <button class="copyright-cancel" onclick="closeCopyrightModal()">취소</button>
+      <button class="copyright-confirm" id="copyright-confirm" onclick="doSavePilImage()">📷 저장하기</button>
+    </div>
+  </div>
+</div>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<div class="hero-guide" id="float-guide">✍️ 마음에 드는 글을 클릭하면 직접 필사할 수 있어요.</div>
+
+<footer>
+  인디스쿨 · 쓰는교사 프로그램 &nbsp;|&nbsp; 2026년 봄 기록전시회
+  <br><br>
+  Copyright © 2026 사단법인 초등교사커뮤니티 인디스쿨
+</footer>
+
+<script>
+const works = [
+  {
+    id: 0,
+    title: "온전히 나를 위한 시간",
+    author: "봄햇살",
+    club: "탐구클럽",
+    avClass: "av-green",
+    badgeClass: "badge-green",
+    excerpt: "진정한 휴식은 단순한 멈춤이 아닌, 의미 있는 몰입에서 시작됩니다. 탐구클럽은 아무것도 하지 않는 휴식이 아닌 온전히 나를 위한 시간을 추구합니다.",
+    full: "진정한 휴식은 단순한 '멈춤'이 아닌 '의미 있는 몰입'에서 시작됩니다.\n\n탐구클럽은 끊임없이 달려가는 일상에서 잠시 벗어나 자신의 내면과 만나는 특별한 시간을 제공합니다. 탐구클럽은 '아무것도 하지 않는 휴식'이 아닌 '온전히 나를 위한 시간'을 추구합니다.\n\n한 달 동안 고전문학 한 권을 읽으며 마음을 울리는 문장을 필사하고, 그것을 토대로 회고록을 작성했습니다. 그 과정에서 교사인 나 자신을 오래 들여다볼 수 있었습니다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 1,
+    title: "문장만 남는 순간",
+    author: "달빛교실",
+    club: "탐구클럽",
+    avClass: "av-green",
+    badgeClass: "badge-green",
+    excerpt: "손끝으로 글자를 따라가다 보면 어느 순간 내가 사라지고 문장만 남는다. 필사는 그런 것이다.",
+    full: "손끝으로 글자를 따라가다 보면 어느 순간 내가 사라지고 문장만 남는다. 필사는 그런 것이다.\n\n처음에는 예쁜 글씨를 쓰려고 집중했다. 나중에는 의미를 따라가게 됐고, 어느 날부터는 그냥 손이 움직이는 대로 두었다. 그 때 비로소 문장이 내 안으로 들어왔다.\n\n한 달이 지나고 나서 내가 필사한 문장들을 다시 읽었다. 내가 어떤 문장에서 멈췄는지, 그게 나의 지도였다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 2,
+    title: "처음으로 천천히",
+    author: "느린오후",
+    club: "탐구클럽",
+    avClass: "av-green",
+    badgeClass: "badge-green",
+    excerpt: "고전은 어렵다고 생각했다. 그런데 한 달 동안 한 권을 읽으며 알게 됐다. 어려운 게 아니라 천천히 읽어야 하는 책이라는 것을.",
+    full: "고전은 어렵다고 생각했다. 그런데 한 달 동안 한 권을 읽으며 알게 됐다. 어려운 게 아니라 천천히 읽어야 하는 책이라는 것을.\n\n교실에서 늘 빠르게 살던 내가 처음으로 천천히 살았다. 수업 준비도 빠르게, 채점도 빠르게, 학부모 상담도 빠르게. 나는 언제부터 이렇게 됐을까.\n\n고전을 읽으며 14세기 사람과 만났다. 그는 나보다 훨씬 천천히 살았다. 그래서 더 많은 것을 보았다. 나는 그에게서 선생님이라는 직업을 새로 배웠다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 3,
+    title: "같은 교실, 다른 외로움",
+    author: "창가자리",
+    club: "탐구클럽",
+    avClass: "av-green",
+    badgeClass: "badge-green",
+    excerpt: "동료 선생님의 회고록을 읽다가 울었다. 내 이야기인 줄 알았다. 우리는 같은 교실에서 다른 외로움을 살고 있었다.",
+    full: "동료 선생님의 회고록을 읽다가 울었다. 내 이야기인 줄 알았다. 우리는 같은 교실에서 다른 외로움을 살고 있었다.\n\n옆 반 선생님이 이런 생각을 하는 줄 몰랐다. 매일 복도에서 인사를 나누는 사이인데. 전시회장을 걷다가 그 선생님 작품 앞에서 한참 서 있었다.\n\n우리가 더 자주 이렇게 이야기를 나눴더라면. 탐구클럽이 그 자리를 만들어줬다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 7,
+    title: "하루가 길어졌다",
+    author: "뒷모습",
+    club: "교단일기클럽",
+    avClass: "av-amber",
+    badgeClass: "badge-amber",
+    excerpt: "일기를 쓰기 시작했더니 하루가 길어졌다. 지나쳤던 것들이 보이기 시작했다. 퇴근 전 복도에서 혼자 점프하던 아이의 뒷모습 같은 것들.",
+    full: "일기를 쓰기 시작했더니 하루가 길어졌다. 지나쳤던 것들이 보이기 시작했다. 퇴근 전 복도에서 혼자 점프하던 아이의 뒷모습 같은 것들.\n\n예전에는 퇴근하면 그 날이 끝났다. 기억에 남는 건 힘들었던 일뿐이었다. 일기를 쓰면서 하루를 다시 걸었다. 그러면 좋았던 일들이 나왔다.\n\n하루에 하나씩이라도 좋은 장면을 찾으려고 의식하게 됐다. 그게 교사로 계속 살게 해주는 힘이 됐다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 8,
+    title: "10년 만의 답",
+    author: "열번째해",
+    club: "교단일기클럽",
+    avClass: "av-amber",
+    badgeClass: "badge-amber",
+    excerpt: "나는 왜 선생님이 됐을까. 5년 차에 처음 그 질문을 했다. 교단일기를 쓰면서 10년 만에 답을 찾았다.",
+    full: "나는 왜 선생님이 됐을까. 5년 차에 처음 그 질문을 했다. 교단일기를 쓰면서 10년 만에 답을 찾았다.\n\n5년 차의 나는 지쳐 있었다. 임용고시 공부를 그렇게 열심히 했는데, 교실은 내가 상상하던 것과 달랐다. 왜 이 일을 시작했는지 기억이 나지 않았다.\n\n일기를 쓰다가 어느 날 초등학교 4학년 때 담임 선생님 생각이 났다. 선생님은 내 그림을 교실 앞에 붙여줬다. 그게 전부였다. 그걸로 충분했다. 나도 그런 순간을 만들고 싶었던 것이었다.",
+    reactions: ["♥", "♥", "♥"]
+  },
+  {
+    id: 9,
+    title: "마음 일지",
+    author: "마음일지",
+    club: "교단일기클럽",
+    avClass: "av-amber",
+    badgeClass: "badge-amber",
+    excerpt: "수업 일지가 아니라 마음 일지를 쓰고 싶었다. 오늘 내가 어떤 선생님이었는지, 아이들이 어떤 눈빛을 보냈는지.",
+    full: "수업 일지가 아니라 마음 일지를 쓰고 싶었다. 오늘 내가 어떤 선생님이었는지, 아이들이 어떤 눈빛을 보냈는지.\n\n공문에 치이고 회의에 치이고 나면 교실 안에서 있었던 일들이 흐릿해진다. 기록하지 않으면 사라진다. 좋은 것도, 힘든 것도.\n\n마음 일지를 쓰기 시작한 뒤로 아이들이 더 잘 보인다. 아니, 전부터 거기 있었는데 내가 못 봤던 것 같다. 쓰는 행위가 보는 능력을 키워줬다.",
+    reactions: ["♥", "♥", "♥"]
+  }
+];
+
+const clubLabel = {
+  "탐구클럽": "탐구클럽 전시관",
+  "교단일기클럽": "교단일기클럽 전시관"
+};
+
+const counts = {};
+works.forEach(w => { counts[w.id] = 0; });
+window.counts = counts;
+
+function renderCards(filter) {
+  const grid = document.getElementById('card-grid');
+  const list = filter === 'all' ? works : works.filter(w => w.club === filter);
+  grid.innerHTML = list.map(w => `
+    <div class="work-card" id="card-${w.id}" onclick="openDetail(${w.id})">
+      <div class="card-top">
+        <span class="qmark">"</span>
+        <div class="card-excerpt">${w.full.replace(/\n\n/g, '<br><br>')}</div>
+        <span class="card-badge ${w.badgeClass}">${clubLabel[w.club]}</span>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-bottom">
+        <div style="display:flex;align-items:center;">
+          <div class="avatar ${w.avClass}">${w.author[0]}</div>
+          <div class="author-info">
+            <div class="author-name">${w.author}</div>
+            <div class="author-sub">${w.title}</div>
+          </div>
+        </div>
+        <button class="react-pill react-btn-${w.id}" onclick="event.stopPropagation();reactCard(this,${w.id})">♥ ${counts[w.id]}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterCards(filter, btn) {
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  closeDetail();
+  hideGuestbook();
+  renderCards(filter);
+}
+
+function reactCard(btn, id) {
+  const liked = window.likedWorks && window.likedWorks.has(id);
+  if (!liked) counts[id]++; else counts[id] = Math.max(0, counts[id] - 1);
+  document.querySelectorAll('.react-btn-' + id).forEach(b => {
+    b.classList.toggle('on', !liked);
+    b.textContent = '♥ ' + counts[id];
+  });
+  if (window.toggleReaction) window.toggleReaction(id);
+}
+
+let activeCardId = null;
+
+function openDetail(id) {
+  const w = works.find(work => work.id === id);
+  const grid = document.getElementById('card-grid');
+
+  if (activeCardId === id) { closeDetail(); return; }
+
+  closeDetail(false);
+  activeCardId = id;
+
+  document.querySelectorAll('.work-card').forEach(c => c.classList.remove('active-card'));
+  const clickedCard = document.getElementById('card-' + id);
+  if (clickedCard) clickedCard.classList.add('active-card');
+
+  // 현재 열 수 계산
+  const cards = Array.from(grid.querySelectorAll('.work-card'));
+  const colCount = Math.round(grid.offsetWidth / clickedCard.offsetWidth);
+  const clickedIndex = cards.indexOf(clickedCard);
+  const rowEndIndex = Math.min(Math.ceil((clickedIndex + 1) / colCount) * colCount - 1, cards.length - 1);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'detail-wrap open';
+  wrap.id = 'detail-wrap';
+  wrap.innerHTML = `
+  <div class="detail-columns">
+    <div class="detail-card">
+      <div class="detail-head">
+        <span class="card-badge ${w.badgeClass}">${clubLabel[w.club]}</span>
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-title">${w.title}</div>
+        <div class="detail-text" style="white-space:pre-line;">${w.full}</div>
+        <div class="detail-author-row">
+          <div class="detail-avatar ${w.avClass}">${w.author[0]}</div>
+          <div>
+            <div style="font-size:14px;font-weight:500;">${w.author}</div>
+            <div style="font-size:12px;color:#9a8e7e;">${clubLabel[w.club]}</div>
+          </div>
+        </div>
+      </div>
+      <div class="detail-reactions">
+        <button class="full-react react-btn-${w.id}" onclick="reactDetail(this,${w.id})">♥ ${counts[w.id]}</button>
+      </div>
+    </div>
+    <div class="pil-panel">
+      <div class="pil-header">
+        <span class="pil-title">✍ 필사하기</span>
+        <span class="pil-hint">왼쪽 글을 읽으며 천천히 따라 써보세요</span>
+      </div>
+      <div class="pil-body">
+        <div class="pil-lines" id="pil-lines"></div>
+        <div class="pil-ghost" id="pil-ghost"></div>
+        <textarea class="pil-textarea" id="pil-textarea"></textarea>
+      </div>
+      <div class="pil-done-msg" id="pil-done">
+        필사를 완료했어요. 오늘도 수고하셨습니다.
+      </div>
+      <div class="pil-footer">
+        <div class="pil-progress-wrap">
+          <div class="pil-progress-bar"><div class="pil-progress-fill" id="pil-fill"></div></div>
+          <span class="pil-count" id="pil-count">0자</span>
+        </div>
+        <button class="pil-save-btn" onclick="savePilImage()">📷 저장</button>
+        <button class="pil-clear" onclick="clearPil()">지우기</button>
+      </div>
+    </div>
+  </div>`;
+
+  cards[rowEndIndex].after(wrap);
+  initPil(w.full);
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+function closeDetail(resetActive = true) {
+  const existing = document.getElementById('detail-wrap');
+  if (existing) existing.remove();
+  document.querySelectorAll('.work-card').forEach(c => c.classList.remove('active-card'));
+  if (resetActive) activeCardId = null;
+}
+
+function initPil(text) {
+  const ta = document.getElementById('pil-textarea');
+  ta.value = '';
+  document.getElementById('pil-fill').style.width = '0%';
+  document.getElementById('pil-count').textContent = '0자';
+  document.getElementById('pil-done').classList.remove('show');
+  document.getElementById('pil-ghost').textContent = text;
+  const target = text.replace(/\n/g, '').length;
+  document.getElementById('pil-lines').innerHTML = Array(20).fill('<div class="pil-line"></div>').join('');
+  ta.oninput = function() {
+    const typed = ta.value.replace(/\n/g, '').length;
+    const pct = Math.min(100, Math.round(typed / target * 100));
+    document.getElementById('pil-fill').style.width = pct + '%';
+    document.getElementById('pil-count').textContent = typed + '자';
+    document.getElementById('pil-done').classList.toggle('show', pct >= 100);
+  };
+}
+
+function clearPil() {
+  const ta = document.getElementById('pil-textarea');
+  ta.value = '';
+  ta.oninput();
+  ta.focus();
+}
+
+function reactDetail(btn, id) {
+  const liked = window.likedWorks && window.likedWorks.has(id);
+  if (!liked) counts[id]++; else counts[id] = Math.max(0, counts[id] - 1);
+  document.querySelectorAll('.react-btn-' + id).forEach(b => {
+    b.classList.toggle('on', !liked);
+    b.textContent = '♥ ' + counts[id];
+  });
+  if (window.toggleReaction) window.toggleReaction(id);
+}
+
+
+
+
+function savePilImage() {
+  document.getElementById('copy-check-1').checked = false;
+  document.getElementById('copy-check-2').checked = false;
+  document.getElementById('copy-check-3').checked = false;
+  document.getElementById('copyright-confirm').classList.remove('active');
+  document.getElementById('copyright-overlay').classList.add('open');
+}
+
+function closeCopyrightModal() {
+  document.getElementById('copyright-overlay').classList.remove('open');
+}
+
+function updateCopyrightBtn() {
+  const allChecked =
+    document.getElementById('copy-check-1').checked &&
+    document.getElementById('copy-check-2').checked &&
+    document.getElementById('copy-check-3').checked;
+  document.getElementById('copyright-confirm').classList.toggle('active', allChecked);
+}
+
+function doSavePilImage() {
+  closeCopyrightModal();
+
+  const ta = document.getElementById('pil-textarea');
+  const typed = ta ? ta.value : '';
+
+  const titleEl = document.querySelector('#detail-wrap .detail-title');
+  const authorEl = document.querySelector('#detail-wrap #d-name');
+  const title = titleEl ? titleEl.textContent : '필사';
+  const author = authorEl ? authorEl.textContent : '';
+
+  const now = new Date();
+  const dateStr = now.getFullYear() + '.' +
+    String(now.getMonth()+1).padStart(2,'0') + '.' +
+    String(now.getDate()).padStart(2,'0');
+
+  const snap = document.getElementById('pil-snapshot');
+  snap.innerHTML = `
+    <div class="snap-header">
+      <div class="snap-tag">쓰는교사 · 2026년 봄 기록전시회</div>
+      <div class="snap-title">${title}</div>
+      <div class="snap-author">${author}</div>
+    </div>
+    <div class="snap-body">
+      <div class="snap-label">✍ 나의 필사</div>
+      <div class="snap-text">${typed ? typed.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '(필사 내용 없음)'}</div>
+    </div>
+    <div class="snap-footer">
+      <div class="snap-footer-logo">쓰는교사</div>
+      <div class="snap-footer-date">${dateStr} 필사</div>
+    </div>
+    <div style="background:#e8e0d4;padding:8px 32px;text-align:center;font-family:'Pretendard',sans-serif;font-size:10px;color:#9a8e7e;">
+      Copyright © 2026 사단법인 초등교사커뮤니티 인디스쿨
+    </div>
+  `;
+
+  html2canvas(snap, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#faf8f3'
+  }).then(canvas => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      const win = window.open('', '_blank');
+      win.document.write(`
+        <html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+        <style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;}
+        img{max-width:100%;}
+        p{color:#fff;font-size:13px;font-family:sans-serif;opacity:0.7;}</style></head>
+        <body><p>이미지를 길게 눌러서 저장하세요</p>
+        <img src="${canvas.toDataURL('image/png')}"></body></html>
+      `);
+    } else {
+      const link = document.createElement('a');
+      link.download = title + '_2026_쓰는교사_기록전시회_' + dateStr + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    snap.innerHTML = '';
+  });
+}
+
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('show', window.scrollY > 300);
+});
+
+// 필터 탭 카운트 동적 업데이트
+document.getElementById('cnt-all').textContent = works.length;
+['탐구클럽', '교단일기클럽'].forEach(club => {
+  const el = document.getElementById('cnt-' + club);
+  if (el) el.textContent = works.filter(w => w.club === club).length;
+});
+
+renderCards('all');
+
+// 플로팅 가이드: 히어로 영역 벗어나면 표시
+const floatGuide = document.getElementById('float-guide');
+window.addEventListener('scroll', () => {
+  if (floatGuide.dataset.hidden) return;
+  const show = window.scrollY > 200;
+  floatGuide.style.opacity = show ? '1' : '0';
+  floatGuide.style.transform = show ? 'translateY(0)' : 'translateY(8px)';
+});
+</script>
+</body>
+</html>
