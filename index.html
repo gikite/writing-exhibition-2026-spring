@@ -188,6 +188,7 @@ window.deleteEntry = async function(id, savedPw) {
 window.showBook = function(btn) {
   document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  document.getElementById('subfilter-bar').style.display = 'none';
   if (typeof closeDetail === 'function') closeDetail();
   document.getElementById('card-grid').style.display = 'none';
   document.getElementById('guestbook-wrap').classList.remove('open');
@@ -199,6 +200,7 @@ window.showBook = function(btn) {
 window.showGuestbook = function(btn) {
   document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  document.getElementById('subfilter-bar').style.display = 'none';
   if (typeof closeDetail === 'function') closeDetail();
   document.getElementById('card-grid').style.display = 'none';
   document.getElementById('book-wrap').classList.remove('open');
@@ -924,6 +926,39 @@ window.hideGuestbook = function() {
 
   .book-tab { border-color: #c4dac8; color: var(--green-text); }
   .book-tab:hover { background: var(--green-light); border-color: #a8c8ac; }
+
+  .subfilter-bar {
+    display: flex;
+    gap: 6px;
+    padding: 10px 32px 12px;
+    background: #f4f0e8;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .subfilter-bar::-webkit-scrollbar { display: none; }
+
+  .subfilter-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 16px;
+    border: 1px solid #d8cfc0;
+    background: transparent;
+    font-size: 12px;
+    color: var(--text-sub);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Pretendard', sans-serif;
+    transition: all 0.15s;
+  }
+  .subfilter-tab:hover { background: #e8e0d0; border-color: #c0b8a8; }
+  .subfilter-tab.active {
+    background: #c8a040;
+    border-color: #c8a040;
+    color: #fff;
+    font-weight: 500;
+  }
   .book-tab.active { background: var(--green); border-color: var(--green); color: #fff; }
 
   /* ── 필사집 소개 ── */
@@ -1516,9 +1551,104 @@ window.hideGuestbook = function() {
     .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
     .stat-item:last-child { border-bottom: none; }
   }
+
+  /* ── WELCOME MODAL ── */
+  .welcome-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(42, 34, 24, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .welcome-box {
+    background: var(--bg);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    max-width: 520px;
+    width: 100%;
+    padding: 40px 36px 32px;
+    position: relative;
+    box-shadow: 0 24px 60px rgba(42, 34, 24, 0.18);
+  }
+
+  .welcome-tag {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 18px;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+
+  .welcome-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+
+  .welcome-body {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 14px;
+    line-height: 2;
+    color: var(--text-sub);
+    word-break: keep-all;
+    white-space: pre-line;
+    margin-bottom: 28px;
+  }
+
+  .welcome-hint {
+    background: var(--green-light);
+    color: var(--green-text);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .welcome-close {
+    width: 100%;
+    padding: 13px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: 'Pretendard', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .welcome-close:hover { background: #3a6a4a; }
 </style>
 </head>
 <body>
+
+<div class="welcome-overlay" id="welcome-modal">
+  <div class="welcome-box">
+    <div class="welcome-tag">2026년 봄 · 인디스쿨</div>
+    <div class="welcome-title">세 번째<br>&lt;쓰는교사 기록전시회&gt;에 오신 것을<br>환영합니다</div>
+    <div class="welcome-body">'쓰는교사'는 글쓰기와 책을 통해 나를 돌아보는 인디스쿨의 기록 프로그램입니다. 글을 쓰며 선생님들께서 일상에서 벗어나 환기할 수 있도록 기획하고 있어요.
+    
+프로그램은 매일 일기를 쓰며 하루를 회고하는 <strong>교단일기클럽</strong>과 시대를 초월한 인간의 지혜가 있는 고전을 읽고 독후감을 쓰는 <strong>고전문학 탐구클럽</strong>으로 운영되고 있습니다.
+
+이번 &lt;쓰는교사 기록전시회&gt;에서는 26년 5~6월에 남긴 선생님들의 기록을 전시합니다. 똑같아 보이는 일상에서 새로움을 발견한 선생님들의 반짝임이 이번 전시에서 전달되었으면 좋겠습니다.</div>
+    <div class="welcome-hint">✍️ 마음에 드는 글을 클릭하면 직접 필사하고 이미지로 저장할 수 있습니다.<br>💓 기록전시회의 느낀 점을 방명록에 남겨주세요.</div>
+    <button class="welcome-close" onclick="document.getElementById('welcome-modal').style.display='none'">전시 보러 가기</button>
+  </div>
+</div>
 
 <header>
   <div class="logo">쓰는<span>교사</span></div>
@@ -1528,34 +1658,41 @@ window.hideGuestbook = function() {
 <section class="hero">
   <div class="hero-tag">2026년 봄 기록전시회</div>
   <h1>선생님들의 이야기</h1>
-  <p class="desc">한 달동안 써 내려간 30편의 기록.<br>필사하고, 읽고, 돌아본 시간들.</p>
+  <p class="desc">한 달동안 써 내려간 기록.<br>매일 쓰고, 읽고, 돌아본 시간들.</p>
   <div class="hero-stats-wrap">
     <div class="hero-stats">
       <div class="stat-item">
-        <div class="stat-val">30</div>
+        <div class="stat-val" id="stat-authors">—</div>
         <div class="stat-label">참여 선생님</div>
       </div>
       <div class="stat-item">
-        <div class="stat-val">2</div>
+        <div class="stat-val" id="stat-clubs">—</div>
         <div class="stat-label">전시관</div>
       </div>
       <div class="stat-item">
-        <div class="stat-val">30</div>
+        <div class="stat-val" id="stat-works">—</div>
         <div class="stat-label">작품</div>
       </div>
     </div>
-    <div style="display:inline-block;background:white;border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:13px;color:var(--text-sub);">✍️ 마음에 드는 글을 클릭하면 직접 필사할 수 있어요.</div>
   </div>
 </section>
 
 <div class="filter-bar">
   <button class="filter-tab active" onclick="filterCards('all', this)">전체 <span class="cnt" id="cnt-all"></span></button>
-  <button class="filter-tab" onclick="filterCards('탐구클럽', this)">탐구클럽 전시관 <span class="cnt" id="cnt-탐구클럽"></span></button>
+
   <button class="filter-tab" onclick="filterCards('교단일기클럽', this)">교단일기클럽 전시관 <span class="cnt" id="cnt-교단일기클럽"></span></button>
+  <button class="filter-tab" onclick="filterCards('탐구클럽', this)">탐구클럽 전시관 <span class="cnt" id="cnt-탐구클럽"></span></button>
   <div class="filter-divider"></div>
   <button class="filter-tab" onclick="showGuestbook(this)">방명록</button>
   <a class="filter-tab" href="https://moonlit-figolla-79e2f0.netlify.app/" target="_blank" style="text-decoration:none;">탐구클럽 고전문학 항해기</a>
   <button class="filter-tab book-tab" onclick="showBook(this)">📖 쓰는교사 필사집 소개</button>
+</div>
+
+<div class="subfilter-bar" id="subfilter-bar" style="display:none;">
+  <button class="subfilter-tab active" onclick="filterSubcat('all', this)">전체</button>
+  <button class="subfilter-tab" onclick="filterSubcat('학교 생활', this)">학교 생활</button>
+  <button class="subfilter-tab" onclick="filterSubcat('선생님의 성장', this)">선생님의 성장</button>
+  <button class="subfilter-tab" onclick="filterSubcat('평범하고 특별한 하루', this)">평범하고 특별한 하루</button>
 </div>
 
 <div class="card-grid" id="card-grid"></div>
@@ -1681,83 +1818,102 @@ window.hideGuestbook = function() {
 
 <script>
 const works = [
-  {
-    id: 0,
-    title: "온전히 나를 위한 시간",
-    author: "봄햇살",
-    club: "탐구클럽",
-    avClass: "av-green",
-    badgeClass: "badge-green",
-    excerpt: "진정한 휴식은 단순한 멈춤이 아닌, 의미 있는 몰입에서 시작됩니다. 탐구클럽은 아무것도 하지 않는 휴식이 아닌 온전히 나를 위한 시간을 추구합니다.",
-    full: "진정한 휴식은 단순한 '멈춤'이 아닌 '의미 있는 몰입'에서 시작됩니다.\n\n탐구클럽은 끊임없이 달려가는 일상에서 잠시 벗어나 자신의 내면과 만나는 특별한 시간을 제공합니다. 탐구클럽은 '아무것도 하지 않는 휴식'이 아닌 '온전히 나를 위한 시간'을 추구합니다.\n\n한 달 동안 고전문학 한 권을 읽으며 마음을 울리는 문장을 필사하고, 그것을 토대로 회고록을 작성했습니다. 그 과정에서 교사인 나 자신을 오래 들여다볼 수 있었습니다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 1,
-    title: "문장만 남는 순간",
-    author: "달빛교실",
-    club: "탐구클럽",
-    avClass: "av-green",
-    badgeClass: "badge-green",
-    excerpt: "손끝으로 글자를 따라가다 보면 어느 순간 내가 사라지고 문장만 남는다. 필사는 그런 것이다.",
-    full: "손끝으로 글자를 따라가다 보면 어느 순간 내가 사라지고 문장만 남는다. 필사는 그런 것이다.\n\n처음에는 예쁜 글씨를 쓰려고 집중했다. 나중에는 의미를 따라가게 됐고, 어느 날부터는 그냥 손이 움직이는 대로 두었다. 그 때 비로소 문장이 내 안으로 들어왔다.\n\n한 달이 지나고 나서 내가 필사한 문장들을 다시 읽었다. 내가 어떤 문장에서 멈췄는지, 그게 나의 지도였다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 2,
-    title: "처음으로 천천히",
-    author: "느린오후",
-    club: "탐구클럽",
-    avClass: "av-green",
-    badgeClass: "badge-green",
-    excerpt: "고전은 어렵다고 생각했다. 그런데 한 달 동안 한 권을 읽으며 알게 됐다. 어려운 게 아니라 천천히 읽어야 하는 책이라는 것을.",
-    full: "고전은 어렵다고 생각했다. 그런데 한 달 동안 한 권을 읽으며 알게 됐다. 어려운 게 아니라 천천히 읽어야 하는 책이라는 것을.\n\n교실에서 늘 빠르게 살던 내가 처음으로 천천히 살았다. 수업 준비도 빠르게, 채점도 빠르게, 학부모 상담도 빠르게. 나는 언제부터 이렇게 됐을까.\n\n고전을 읽으며 14세기 사람과 만났다. 그는 나보다 훨씬 천천히 살았다. 그래서 더 많은 것을 보았다. 나는 그에게서 선생님이라는 직업을 새로 배웠다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 3,
-    title: "같은 교실, 다른 외로움",
-    author: "창가자리",
-    club: "탐구클럽",
-    avClass: "av-green",
-    badgeClass: "badge-green",
-    excerpt: "동료 선생님의 회고록을 읽다가 울었다. 내 이야기인 줄 알았다. 우리는 같은 교실에서 다른 외로움을 살고 있었다.",
-    full: "동료 선생님의 회고록을 읽다가 울었다. 내 이야기인 줄 알았다. 우리는 같은 교실에서 다른 외로움을 살고 있었다.\n\n옆 반 선생님이 이런 생각을 하는 줄 몰랐다. 매일 복도에서 인사를 나누는 사이인데. 전시회장을 걷다가 그 선생님 작품 앞에서 한참 서 있었다.\n\n우리가 더 자주 이렇게 이야기를 나눴더라면. 탐구클럽이 그 자리를 만들어줬다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 7,
-    title: "하루가 길어졌다",
-    author: "뒷모습",
-    club: "교단일기클럽",
-    avClass: "av-amber",
-    badgeClass: "badge-amber",
-    excerpt: "일기를 쓰기 시작했더니 하루가 길어졌다. 지나쳤던 것들이 보이기 시작했다. 퇴근 전 복도에서 혼자 점프하던 아이의 뒷모습 같은 것들.",
-    full: "일기를 쓰기 시작했더니 하루가 길어졌다. 지나쳤던 것들이 보이기 시작했다. 퇴근 전 복도에서 혼자 점프하던 아이의 뒷모습 같은 것들.\n\n예전에는 퇴근하면 그 날이 끝났다. 기억에 남는 건 힘들었던 일뿐이었다. 일기를 쓰면서 하루를 다시 걸었다. 그러면 좋았던 일들이 나왔다.\n\n하루에 하나씩이라도 좋은 장면을 찾으려고 의식하게 됐다. 그게 교사로 계속 살게 해주는 힘이 됐다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 8,
-    title: "10년 만의 답",
-    author: "열번째해",
-    club: "교단일기클럽",
-    avClass: "av-amber",
-    badgeClass: "badge-amber",
-    excerpt: "나는 왜 선생님이 됐을까. 5년 차에 처음 그 질문을 했다. 교단일기를 쓰면서 10년 만에 답을 찾았다.",
-    full: "나는 왜 선생님이 됐을까. 5년 차에 처음 그 질문을 했다. 교단일기를 쓰면서 10년 만에 답을 찾았다.\n\n5년 차의 나는 지쳐 있었다. 임용고시 공부를 그렇게 열심히 했는데, 교실은 내가 상상하던 것과 달랐다. 왜 이 일을 시작했는지 기억이 나지 않았다.\n\n일기를 쓰다가 어느 날 초등학교 4학년 때 담임 선생님 생각이 났다. 선생님은 내 그림을 교실 앞에 붙여줬다. 그게 전부였다. 그걸로 충분했다. 나도 그런 순간을 만들고 싶었던 것이었다.",
-    reactions: ["♥", "♥", "♥"]
-  },
-  {
-    id: 9,
-    title: "마음 일지",
-    author: "마음일지",
-    club: "교단일기클럽",
-    avClass: "av-amber",
-    badgeClass: "badge-amber",
-    excerpt: "수업 일지가 아니라 마음 일지를 쓰고 싶었다. 오늘 내가 어떤 선생님이었는지, 아이들이 어떤 눈빛을 보냈는지.",
-    full: "수업 일지가 아니라 마음 일지를 쓰고 싶었다. 오늘 내가 어떤 선생님이었는지, 아이들이 어떤 눈빛을 보냈는지.\n\n공문에 치이고 회의에 치이고 나면 교실 안에서 있었던 일들이 흐릿해진다. 기록하지 않으면 사라진다. 좋은 것도, 힘든 것도.\n\n마음 일지를 쓰기 시작한 뒤로 아이들이 더 잘 보인다. 아니, 전부터 거기 있었는데 내가 못 봤던 것 같다. 쓰는 행위가 보는 능력을 키워줬다.",
-    reactions: ["♥", "♥", "♥"]
-  }
+  { id: 0,  title: "나의 역할", author: "8585", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아침부터 신난 아이들을 보고 있자니 내 마음은 복잡한데 너희는 왜 이렇게 신났니 샘이 나다가도 생글생글 웃는 아이들의 얼굴을 가까이서 볼 수 있는 것도 큰 행운이라는 생각이 들었다. 아이들이 매일 즐겁게 생활할 수 있도록 한 번 더 참고, 때로는 한번 더 엄격하게 이야기하며 버텨가는 게 바로 나의 역할이겠지!" },
+  { id: 1,  title: "일교차", author: "각난닫랄", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "학교생활도 일교차처럼 온탕과 냉탕을 왔다 갔다 할 때가 많은 것 같다. 일교차가 심할 때 건강관리가 잘 안되는 것처럼 학교에서의 일교차가 커질 땐 나도 힘들어진다. 일교차가 적도록 나 자신을 잘 보살펴봐야겠다. 그리고 그렇게 보살핀 만큼 아이들에게도 돌아갈 수 있게 열심히 해야겠다." },
+  { id: 2,  title: "덧셈", author: "국수사과", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "재현이는 머리도 짧게 잘라서 알밤 같다. 그래도 저 알밤 같은 조그마한 머리로 힘겹게 덧셈을 하는 것 보니 미워 죽겠다가도 귀여워 죽겠다. 정말 나도 애들도 왜 이러는 건지 알다가도 모르겠다." },
+  { id: 3,  title: "약분과 분통", author: "김코난", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "수많은 수포자를 잡는 초등 개념은 바로 분수일 것이다. 지금 바로 그 수포자를 내 손으로 양성하는 기로에 서 있다. 5학년 1학기 4단원 약분과 통분... 나의 설명 부족인가 아님 학습 결손으로 인한 것인가. 내가 아이들의 학습 능력을 약분하고 있는 것 같다. 마음 같아서는 너희들의 뇌와 내 뇌를 통분하고 싶구나! 아니면 단원명을 약분과 분통으로 바꾸든가." },
+  { id: 4,  title: "운동회 달리기", author: "넌된다", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "'땅'하는 총소리와 함께 땅을 울리는 함성이 터져 나온다. 청팀과 백팀의 가장 어린 주자들이 스프링처럼 튕겨져 나간다. 날렵한 작은 몸들이 힘을 다해 뛰는 모습에는 울림이 있다. 전교생이 지르는 '오'와 '아'가 번갈아 가며 운동장을 흔든다. 교실에서 지를 수 없었던 고함을 온통 운동장에 쏟아 놓는다." },
+  { id: 5,  title: "널 이해하기가 힘들어 그래서 미안해", author: "내년엔유니콘반을만나길", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "나도 모범생으로 자라서 아이들의 말이나 행동에서 이해가 안 되는 것들이 참 많다. 내가 더 경험이 많았다면, 아이들을 좀 더 이해하고 사랑하기 수월했을 텐데 미안하다. 나도 그랬다며, 나였어도 그랬을 거라며, 그런데 나는 이렇게 극복했다며, 말해줄 것들이 많지 않아서 아쉬운 날이다." },
+  { id: 6,  title: "에너지", author: "눈부신가을", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "올해는 유독 몸을 가만히 두지 못하는 아이들이 많다. 이 에너지는 뭐랄까? 한 곳으로 응집이 가능한 타오르는 열정이라기보다는 여기저기 옮겨붙는 바스락거리는 불씨다." },
+  { id: 7,  title: "과학 수업이 좋아요", author: "대대한행복", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "\"과학수업이 너무 좋아요. 작년보다 훨씬 좋아요!\" 그 순간 눈물이 핑 돌았다. 아 이 맛에 교사를 하는구나. 내가 한 노력과 정성이 결코 헛되지 않는구나. 나는 바로 과학 실험 교구를 주문했다. 딱 기다려라, 아이들아. 과학 선생님이 눈 돌아가게 해줄게!" },
+  { id: 8,  title: "6월", author: "둥겸", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "잊고 있었는데 태현이가 오늘 자리 궁금하다고 말해 준 덕분에 챙길 수 있었다. 가끔 아이들이 보챈 덕에 일을 챙길 수 있는 때가 있다. 한 주의 시작으로 이만하면 꽤 괜찮다는 생각이 든다. 생각해 보니 6월의 시작이기도 하다. 더워지기 전에 좋은 날씨에서 더 많이 웃는 날들을 보냈으면 좋겠다." },
+  { id: 9,  title: "너희의 불안을 이해하고자", author: "일주일의마지막", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "다음 주에 국어 단원평가, 중입 모의고사, 수학 단원평가가 있다고 한 순간! 교실에서 일제히 따다닥 따다닥 소리가 들리기 시작했다. 아이들이 요새 유행하는 키캡 키링을 마치 짠 것처럼 누르기 시작한 거였다. 불안하고 스트레스받았다는 걸 이렇게 투명하게 나타내다니. \"너희 정말 속이 투명하다!\" 하고 나는 웃고 말았다." },
+  { id: 10, title: "훈육", author: "indidongdong", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이를 훈육한다는 건 생각보다 훨씬 어려운 일이었다. 각자 다른 성향의 아이들을, 각자의 방식으로 이해하고 대하는 일은 더더욱." },
+  { id: 11, title: "다정한 환대", author: "jayuroum", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "20여 년 동안 내가 여기까지 올 수 있었던 것은 동료 선생님들 덕분이었다. 결국 오래 버티게 하는 것은 거창한 목표가 아니라 곁에서 함께 웃고 공감해 주는 마음들인지 모른다. 그 다정함 속으로 돌아와 아이들과 선생님들 사이에서 평범하지만, 감사한 하루를 채워간다." },
+  { id: 12, title: "아기 선생님", author: "주유소사는곰", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "막내 생활이 어언 2년 6개월째. 선배 교사님들의 관심과 사랑을 먹으며 쑥쑥 자란 내가 어느새 후배교사를 맞게 되었다! 아기 선생님의 질문에 멋지게 답변하는 동시에 내가 지금까지 얼마나 많은 선배 선생님의 도움이 있었는지 생각해 볼 수 있었다. 나도 저기서부터 시작했겠지. 기본적인 게 기본이 될 때까지 하나하나 선배들의 가르침이 있었겠구나 싶었다." },
+  { id: 13, title: "동학년 선생님", author: "헤맨만큼내땅", club: "교단일기클럽", subcat: "학교 생활", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "난 우리 반 전담 수업뿐만 아니라 다른 반 전담 수업 시간도 찾아본다. 왜냐하면 좋아하는 선생님과의 연구실 수다 타임이 겹치는 순간을 기다리기 때문이다. 난 마음 맞는 동학년 선생님들이 너무 좋다." },
+
+  { id: 14, title: "교직", author: "티유쌤", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "어떤 아이들이던 만나고 싶어지고 그런 열정이 바닥 없는 독에서 계속 긁혀 올라온다는 점이 신기하다. 좋아하는 취미가 정말 많아도 언젠가는 쉽게 질리고 마는데, 가르치는 일만큼은 질린 적이 없어서 참으로 감사할 따름이다. 이렇게 평생 살아갈 수 있다면 좋겠다." },
+  { id: 15, title: "분명히 성장했어", author: "8585", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "회의를 마치고 결과 보고 기안까지 올렸을 때는 정말! 내 자신이 대단하다는 생각이 들었다. 나 정말 많이 성장했다. 일을 잘한다는 점이 아니고 고생한 나를 인정할 수 있다는 점이, 내 성과를 스스로 자랑스러워한다는 점이. 자책만 하느라 괴로워했던 신규 시절의 눈물이 이제서야 나를 성장시켜 주는구나 싶어 내 자신에게 미안하고 고마웠다." },
+  { id: 16, title: "어릴 적 꿈", author: "8585", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "연구부장님께서 수업 내내 미소로 학생들과 소통하는 모습이 예뻤다는 말씀을 해주셨다. 내가 진짜 웃었나 봐. 나도 모르게 즐거웠구나, 아이들을 예뻐하고 있었구나 그제서야 깨달았다. 신기하고, 다행이고, 감사하고, 또 뿌듯한 감정이 들었다. 나 완전 천직인가 봐~ 오늘만큼은 교사 같아. 선생님 같아! 새삼스럽게 어릴 적 꿈을 이뤄냈다는 사실을 되새기며 마음이 몽글몽글해지는 하루다." },
+  { id: 17, title: "처음인 아이들과 익숙해진 교사", author: "EUNHAHAHA", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "여러 차례 같은 내용으로 수업하면 익숙해져서 더 능숙한 교사가 되는 것이 아니라 처음 걷는 아이들의 속도를 잊어 버리는 건 아닌지 생각이 든다. 아이들에게 필요한 건 효율보다 충분한 과정일 때가 많다. 천천히 보고, 같이 멈추고, 왜 그런지 하나씩 연결해 보는 시간 말이다. 아이들은 아직 그 길 자체를 처음 걸어가는 중이다." },
+  { id: 18, title: "겁", author: "indidongdong", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "분명 예전의 나는 뭐든 다 시도해 보려는 사람이었는데, 가진 게 점점 많아질 수록 이것들을 내려놓고 가는 게 조금씩 더 어려워지는 느낌이다. 내가 가진 겁을 떨쳐내고, 용기를 가져야겠다고 생각했다." },
+  { id: 19, title: "첫, 밤러닝", author: "jayuroum", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "달려보니 낮에 뛰는 것보다 밤이 훨씬 좋았다. 햇빛 아래의 초록이 싱그러움이었다면, 밤의 초록은 차분하고 다정한 느낌이 있었다. 초록 터널을 꽃길마냥 가뿐하고 기쁜 마음으로 뛰어가는 순간들. 역시 뭐든 해봐야 그 맛을 아는 법이다. 나는 딱 한 번 뛰고 밤 러닝에 반해버렸다." },
+  { id: 20, title: "어린이의 시선", author: "굴포", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이는 지금도 발달 과정 중에 있으며 어른의 축소판이 아니라는 점을 명심해야 한다. 어린이의 시선에서 이해하고 기다려주는 노력이 반드시 필요하다. \"어른들은 누구나 처음엔 어린이였다. 하지만 그것을 기억하는 어른은 별로 없다.\"" },
+  { id: 21, title: "좋은 말과 글의 힘", author: "굴포", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "작년에 가르쳤던 아이들이 삼삼오오 짝을 지어 찾아와서는 소식을 전해 줄 때가 있는데 이런 이야기를 듣고 있노라면 흐뭇한 생각에 마음이 넉넉해진다. 좋은 음식이 몸을 건강하게 하듯 좋은 말과 글은 마음을 튼튼하게 만든다. 우리는 늘 서로에게 힘이 되고 용기를 주기 위하여 어떤 말을 해야 할지를 고민하면서 살아야 하지 않을까?" },
+  { id: 22, title: "나는 무조건 네 편이지", author: "대대한행복", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "\"나는 무조건 네 편이지. 내가 아니면 누가 네 편이야\" 심적으로 힘들 때 사랑하는 사람이 툭 던진 이 한마디. 오들오들 떨다가 뜨끈한 차를 마셨을 때처럼 속이 차올랐다. 신기했다. 말 한마디가 사람의 마음을 이렇게나 채우다니. 나도 누군가에게 이런 따뜻함을 줘야지. 내 마음속에 안심과 평안이 넘쳐서 타인에게도 퍼줄 수 있는 사람이 되어야지." },
+  { id: 23, title: "하늘의 별따기", author: "딩디딩", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "이미 어른의 몸이 되어버린 나에게 이 친구들의 마음과 행동을 완전히 이해하기란 참 하늘의 별따기만큼 어렵다. 그럼에도 나에게 정을 주고 마음을 주고 사랑한다고 이야기하는 이 어린이들이 너무 따뜻하다." },
+  { id: 24, title: "마음을 나누는 곳", author: "눈사람아이", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "교사라는 자리는 어쩌면 마음을 나누는 곳인 것 같다. 승부욕도 강하고 자존심도 셌던 내가 마음을 주고 받는 연습을 하는 곳. 어쩌면 교실에서 내가 배우는 것들이 더 많을지도 모른다는 생각이 든다. 그러니까 값을 매길 수 없는 것도 있다는 것을 매일 배우는 중이다." },
+  { id: 25, title: "각성", author: "보리그린", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "그냥 모든 게 시들해졌다. 이 나이쯤 되면 귀찮음이 자연스러운 거라 당연시한다. 이러면 늙는다. 몸도 늙지만 마음도 머리도 늙는다. 그러다가 총체적으로 생기를 잃게 된다. 그러고 싶지 않다. 생동감있게 살고 싶다. 그러려면 우선 귀찮음을 극복해야한다. 하기 싫은 일을 해야한다. 그리고 낯선 일을 찾아야한다." },
+  { id: 26, title: "책 읽기", author: "봄_1575358", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "책 읽기는 낯설거나 새롭거나 유혹적인 어떤 것을 받아들이면서 느리게 서서히, 어쩌면 영원히 변하는 과정이다." },
+  { id: 27, title: "고마움", author: "사우나", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "나의 20대를 마무리했던 지난 학교에서, 나는 아무것도 한 게 없는 것만 같아 그때의 내가 원망스럽기도 했다. 근데 그때의 내가 정말 정말 느리게, 찌질하게, 질질 끌면서도, 또 해보려고 일어나고 포기하고 또 일어났다가 포기해 준 덕분에 지금에 이르게 된 것이 아닐까 싶다." },
+  { id: 28, title: "어른의 무게", author: "숨생님", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이들에게는 감정 조절을 잘해라, 쓸데없이 울지 말라고 자주 이야기하는데 사실 나도 감정 조절이 썩 잘되지 않을 때가 많다. 물론 어린이처럼 모두가 보는 앞에서 찔찔 짜지는 않는다. 어린이는 다소 용인이 가능하지만, 어른은 그러면 곤란하기 때문이다. 취직하고 혼자 살며 어른의 무게를 조금씩 느낀다." },
+  { id: 29, title: "나다움", author: "어린이들엉덩이붙여", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "쓰다보니 제일 맘에 드는 모습은 아이러니하게도 직장에서의 모습같다. 아직도 나다운게 뭔지 모르겠지만 하루에 8시간이나 있는 공간에서의 내가 꽤 맘에 든다는 건 행복한 일인 것 같다." },
+  { id: 30, title: "시작하기 싫어하는 마음", author: "이끌림과끌림", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "하기 싫었던 몇 가지를 오늘도 해내면서 어른이 되어가나 보다. 시작하기 싫어하는 마음 앞에서 함께할 누군가를 찾고 같이 해보니 할 만하다. 웃으면서 또 넘어가게 되었다." },
+  { id: 31, title: "잘자란 어른", author: "헤맨만큼내땅", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이들이 나를 보며 잘 자란 '어른'이라 생각해 주니 기분이 이상했다. 진짜 내가 잘 자란 어른인지 생각해 본다. 1인분의 몫은 하는 사람이 되었으니 잘 자랐다고 생각해도 되는 걸까. 자꾸만 의구심이 생긴다." },
+  { id: 32, title: "취향의 호불호", author: "헤맨만큼내땅", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "시간이 흐르며 내 취향의 호불호가 강해지고 있음을 느끼는데, 이는 꼭 부정적인 것만은 아닌 듯하다. 좋아하는 걸로 꽉 채워 살아낸 주말을 기억하며 또다시 다음 주를 살아내면 된다." },
+  { id: 33, title: "시야", author: "호랑이사자", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "교실에서 다양한 아이들을 만나며 사람에 대한 시야가 훨씬 넓어졌다. 누군가는 감정을 그대로 드러내고, 누군가는 규칙보다 관계를 먼저 배우는 중이었다. 그 모습을 오래 지켜보다 보니 나 역시 조금씩 달라졌다. 꼭 모범생이지 않아도, 조금 서툴고 흔들려도 사람은 충분히 자라갈 수 있다는 것을 알게 되었다." },
+  { id: 34, title: "무력감", author: "8585", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "잘하고 싶은데, 완벽해지고 싶은데 너무 바쁘니까 아무리 노력해도 자꾸 구멍이 생기는 상황이 너무 지겹다. 일주일에 5일을 쏟는 직장에서의 내가 내 마음에 들지 않는다는 사실은 가슴으로 파고들어 나를 힘들게 한다. 언제쯤 이 굴레에서 벗어날 수 있을까.. 언제쯤 초연해질 수 있을까." },
+  { id: 35, title: "가치", author: "소울트립", club: "교단일기클럽", subcat: "선생님의 성장", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "바쁘게 보낸 나의 하루의 일상을 이렇게 기록하는 것만으로도 가치 있게 느껴진다. 일하지 않고 집에 있으며 '무가치함'이라는 단어가 불쑥불쑥 떠올라 힘겨웠다. 어쩌면 이 기록들이 나를 다시 '가치로운 인간'으로 만들어줄 것이라는 믿음이 생긴다." },
+
+  { id: 36, title: "밥보다는 사랑", author: "굴포", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이들 틈새로 수정이의 모습이 보였다. 아마도 편지를 전하려고 온 모양이다. 점심은 먹었냐고 물었더니 기대 밖의 답이 돌아왔다. \"선생님, 밥보다는 사랑이에요!\" 말수가 적어서 묻는 말에 겨우 대답만 하던 작고 어린 소녀가 어느새 이렇게 훌쩍 자라서 '사랑'이라는 감정을 배워가는구나 싶은 마음에 가슴이 뭉클했다." },
+  { id: 37, title: "스승의 날 복도", author: "넌된다", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아침 시작부터 복도에 아이들이 치인다. 서로 어깨를 부딪치며 우왕좌왕 친구와 손을 잡고 뛰어간다. 작년 선생님께 스승의 날 편지를 전달하러 가는 길이다. 스승의 날이 아니라 우당탕탕 작년 친구들 만나 회포 푸는 날 같다. 교실 앞 유리에 코를 대고 기대에 찬 웃음으로 서성거리는 소년의 종이꽃이 사랑스럽다." },
+  { id: 38, title: "기다림의 가치", author: "눈사람아이", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "'작년 선생님 반 아이들이 교문 앞에서 기다리고 있어요' 교문에서 교복 입은 몇 명의 아이들이 달려온다. 번호도 모르기에 한 시간 반째 마냥 기다렸다고 한다. 누군가를 기다리는 일은 흔치 않다. 언제 올지 모르는 대상을 기다리는 장면은 19세기 일처럼 아득하다. 오로지 보고 싶은 그 마음으로 나를 그렇게 기다려주는 이가 있다는 것이 얼마나 설레고 벅찬 일인지. 그 기다림의 가치는 어떤 물질로도 환원할 수 없을 거라고 확신한다." },
+  { id: 39, title: "나의 선생님", author: "이하비", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "그렇게 다시 만난 선생님은 이야기하셨다. \"난 네가 제자이며 나의 어린 친구라고 생각했어. 그렇기 때문에 우리가 이렇게 만나는 거고. 네가 힘들 때에도 나는 너를 기다리고 있었단다. 언제든 힘들 때나 술 한 잔 마실 일이 필요할 때 연락하렴.\"" },
+  { id: 40, title: "스승의 날의 기쁨과 그리움", author: "참행복샘", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이들이 모르는 것이 있다면, 선생님은 아무리 시간이 지나도 아이들을 잊지 않는다는 것이다. 일 년 동안 온 마음과 정성을 들였던 아이들이 어찌 쉬이 잊히겠는가. 십수 년이 지난 제자들의 이름은 물론이요. 얼굴과 말투, 글씨체까지 다 기억나니 내가 생각해도 참 신기한 노릇이다." },
+  { id: 41, title: "스승의 날 편지", author: "헤맨만큼내땅", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "1학년 때 만나 지금은 3학년이 된 학생이 편지를 건넨다. \"1학년 때 선생님께 사랑을 많이 받아 저는 이만큼 컸어요.\" 역시 우리의 직업은 아이들 때문에 웃고 아이들 때문에 운다. 내가 준 사랑으로 네가 그만큼 컸다니, 내가 정말 뭐라도 된 것 같아 나에게 한껏 취한 밤이다." },
+  { id: 42, title: "내가 해냄!", author: "소울트립", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "종이에 적으니 해야할 일이 한 눈에 들어왔다. 완료한 일에 형광펜을 칠하기 시작하니, 내가 해냈다는 뿌듯한 마음과 함께 하지 못한 일을 얼른 해내야겠다는 강한 동기 부여가 되었다. 무가치함, 무기력함, 무료함을 느끼던 나는 매일 매일의 작은 미션들을 수행해내며 다시 가치로움, 활력, 뿌듯함을 찾아갔다." },
+  { id: 43, title: "나의 어버이 날", author: "jayuroum", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "아이의 이벤트는 서툴기 그지없었고, 소박했지만 그 과정이 모두 내 마음에 고스란히 남았다. 완벽해서 감동적인 것이 아니라 마음을 다해 애쓴 흔적이 보여서 감동적이었다. 아이는 본인의 작은 세계 안에서 최선을 다해 엄마, 아빠를 기쁘게 하고 싶었던 것이다." },
+  { id: 44, title: "낮잠의 요정", author: "김코난", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "텅 빈 교실에 올해 들어 부쩍 나를 찾아 오는 것은 바로 낮잠의 요정이다. 회의를 해도 졸리고, 연수를 들어도 졸리고, 컴퓨터를 보고 있어도 졸리다. 사태가 심각하다. 그렇게 늦게 자는 것도 아닌데, 꼭 이 시간이 되면 너무 졸리다." },
+  { id: 45, title: "평범한 하루", author: "대대한행복", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "교단일기를 쓰면서 내가 하는 온갖 걱정과 생각들이 대부분 기우였다는 점을 알았다. 막상 글로 표현하려고 보니 내가 했던 걱정들은 터무니없거나 해결할 수 없는 것들 투성이었다. 글감을 찾기 위해 나의 하루를 찬찬히 돌이켜보면 삶이 감사로 가득했다. 오후에 따뜻한 햇살과 평화로운 시간, 간지럽게 울리는 아이들의 웃음소리, 사랑하는 사람이 기다리고 있는 퇴근길. 평범한 하루가 주는 만족감을 누릴 수 있는 지금이 진심으로 행복하다." },
+  { id: 46, title: "조금만 여유있게", author: "둥겸", club: "교단일기클럽", subcat: "평범하고 특별한 하루", avClass: "av-amber", badgeClass: "badge-amber",
+    full: "앞에 놓인 일들의 순서와 경중을 따져보며 하나하나 해결하면 금방 하루가 지난다는 걸 생각해야지! 급한 건 없다! 들숨보단 날숨을 더 잘 내쉬는 한 주가 되면 좋겠다." }
 ];
 
 const clubLabel = {
@@ -1769,15 +1925,29 @@ const counts = {};
 works.forEach(w => { counts[w.id] = 0; });
 window.counts = counts;
 
-function renderCards(filter) {
+let currentClubFilter = 'all';
+let currentSubcat = 'all';
+// 페이지 로드 시 한 번만 섞기
+(function() {
+  for (let i = works.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [works[i], works[j]] = [works[j], works[i]];
+  }
+})();
+
+function renderCards(filter, subcat) {
   const grid = document.getElementById('card-grid');
-  const list = filter === 'all' ? works : works.filter(w => w.club === filter);
+  let list = filter === 'all' ? works : works.filter(w => w.club === filter);
+  if (subcat && subcat !== 'all') list = list.filter(w => w.subcat === subcat);
   grid.innerHTML = list.map(w => `
     <div class="work-card" id="card-${w.id}" onclick="openDetail(${w.id})">
       <div class="card-top">
         <span class="qmark">"</span>
         <div class="card-excerpt">${w.full.replace(/\n\n/g, '<br><br>')}</div>
-        <span class="card-badge ${w.badgeClass}">${clubLabel[w.club]}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px;">
+          <span class="card-badge ${w.badgeClass}" style="margin-top:0;">${clubLabel[w.club]}</span>
+          ${w.subcat ? `<span class="card-badge" style="margin-top:0;background:#f0ece3;color:var(--text-sub);border:1px solid var(--border);">${w.subcat}</span>` : ''}
+        </div>
       </div>
       <div class="card-divider"></div>
       <div class="card-bottom">
@@ -1799,7 +1969,25 @@ function filterCards(filter, btn) {
   btn.classList.add('active');
   closeDetail();
   hideGuestbook();
-  renderCards(filter);
+  currentClubFilter = filter;
+  currentSubcat = 'all';
+  const subBar = document.getElementById('subfilter-bar');
+  if (filter === '교단일기클럽') {
+    subBar.style.display = 'flex';
+    subBar.querySelectorAll('.subfilter-tab').forEach(b => b.classList.remove('active'));
+    subBar.querySelector('.subfilter-tab').classList.add('active');
+  } else {
+    subBar.style.display = 'none';
+  }
+  renderCards(filter, 'all');
+}
+
+function filterSubcat(subcat, btn) {
+  document.querySelectorAll('.subfilter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSubcat = subcat;
+  closeDetail();
+  renderCards(currentClubFilter, subcat);
 }
 
 function reactCard(btn, id) {
@@ -2024,6 +2212,12 @@ document.getElementById('cnt-all').textContent = works.length;
   const el = document.getElementById('cnt-' + club);
   if (el) el.textContent = works.filter(w => w.club === club).length;
 });
+document.getElementById('cnt-all').textContent = works.length;
+
+// hero stats 동적 계산
+document.getElementById('stat-authors').textContent = new Set(works.map(w => w.author)).size;
+document.getElementById('stat-clubs').textContent = new Set(works.map(w => w.club)).size;
+document.getElementById('stat-works').textContent = works.length;
 
 renderCards('all');
 
