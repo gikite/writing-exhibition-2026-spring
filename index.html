@@ -121,7 +121,12 @@ window.toggleReaction = async function(id) {
   if (liked) likedWorks.delete(id); else likedWorks.add(id);
   localStorage.setItem('liked-works', JSON.stringify([...likedWorks]));
   const ref = doc(db, 'reactions', String(id));
-  await setDoc(ref, { count: increment(liked ? -1 : 1) }, { merge: true });
+  if (!liked) {
+    await setDoc(ref, { count: increment(1) }, { merge: true });
+  } else {
+    const currentCount = (window.counts && window.counts[id]) || 0;
+    await setDoc(ref, { count: Math.max(0, currentCount - 1) }, { merge: true });
+  }
 };
 
 window.openEdit = function(id, savedPw) {
@@ -458,6 +463,7 @@ window.hideGuestbook = function() {
     padding: 24px 22px 18px;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .qmark {
@@ -476,6 +482,16 @@ window.hideGuestbook = function() {
     color: #3a3028;
     word-break: keep-all;
     overflow-wrap: break-word;
+    max-height: 8.5em;
+    overflow: hidden;
+    position: relative;
+  }
+  .card-excerpt::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2.5em;
+    background: linear-gradient(to bottom, transparent, var(--surface));
   }
 
   .card-badge {
