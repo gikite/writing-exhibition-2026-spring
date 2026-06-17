@@ -482,16 +482,6 @@ window.hideGuestbook = function() {
     color: #3a3028;
     word-break: keep-all;
     overflow-wrap: break-word;
-    max-height: 8.5em;
-    overflow: hidden;
-    position: relative;
-  }
-  .card-excerpt::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2.5em;
-    background: linear-gradient(to bottom, transparent, var(--surface));
   }
 
   .card-badge {
@@ -1566,9 +1556,12 @@ window.hideGuestbook = function() {
     .hero h1 { font-size: 26px; }
     .detail-wrap { padding: 0 16px 24px; }
     header { padding: 0 20px; }
-    .hero-stats { flex-direction: column; border-radius: 12px; }
-    .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
-    .stat-item:last-child { border-bottom: none; }
+    .hero-stats { flex-direction: row; border-radius: 12px; width: 90%; }
+    .stat-item { border-right: 1px solid var(--border); border-bottom: none; width: auto; flex: 1; padding: 18px 8px; }
+    .stat-item:last-child { border-right: none; }
+    .stat-val { font-size: 28px; }
+    .stat-label { font-size: 12px; white-space: nowrap; }
+    .guestbook-list { grid-template-columns: 1fr; }
   }
 
   /* ── WELCOME MODAL ── */
@@ -1838,6 +1831,8 @@ window.hideGuestbook = function() {
   인디스쿨 · 쓰는교사 프로그램 &nbsp;|&nbsp; 2026년 봄 기록전시회
   <br><br>
   Copyright © 2026 사단법인 초등교사커뮤니티 인디스쿨
+  <br><br>
+  <a href="https://indischool.com/boards/announcement/37579597" target="_blank" style="color: var(--text-hint); text-decoration: underline; font-size: 12px;">🐛 오류 제보하기</a>
 </footer>
 
 <script>
